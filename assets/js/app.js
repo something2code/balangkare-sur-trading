@@ -107,3 +107,80 @@ assistantForm?.addEventListener('submit', async (event) => {
 });
 
 function escapeHtml(value) { const node = document.createElement('span'); node.textContent = value; return node.innerHTML; }
+
+const conversation = document.querySelector('#conversation-messages');
+const conversationForm = document.querySelector('#conversation-form');
+if (conversation && conversationForm) {
+  const status = document.querySelector('#conversation-status');
+  const input = conversationForm.querySelector('textarea[name="body"]');
+  const sendButton = conversationForm.querySelector('button[type="submit"]');
+  const conversationId = conversation.dataset.conversationId;
+  const currentUserId = Number(conversation.dataset.userId);
+  let lastId = Number(conversation.dataset.lastId || 0);
+  let polling = false;
+
+  const appendMessage = (message) => {
+    const id = Number(message.id);
+    if (!id || id <= lastId) return;
+    conversation.querySelector('[data-empty-message]')?.remove();
+    const article = document.createElement('article');
+    const ownMessage = Number(message.sender_id) === currentUserId;
+    article.className = `conversation-message${ownMessage ? ' conversation-message-own' : ''}`;
+    article.dataset.messageId = String(id);
+    const meta = document.createElement('div');
+    meta.className = 'conversation-message-meta';
+    const name = document.createElement('strong');
+    name.textContent = ownMessage ? 'You' : message.sender_name;
+    const time = document.createElement('time');
+    const date = new Date(String(message.created_at).replace(' ', 'T'));
+    time.dateTime = date.toISOString();
+    time.textContent = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(date);
+    meta.append(name, time);
+    const body = document.createElement('p');
+    body.textContent = message.body;
+    article.append(meta, body);
+    conversation.append(article);
+    lastId = id;
+    conversation.dataset.lastId = String(id);
+    conversation.scrollTop = conversation.scrollHeight;
+  };
+
+  const pollMessages = async () => {
+    if (polling) return;
+    polling = true;
+    try {
+      const url = `${conversation.dataset.endpoint}?conversation_id=${encodeURIComponent(conversationId)}&after_id=${lastId}`;
+      const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not check for new messages.');
+      data.messages.forEach(appendMessage);
+      status.textContent = 'Messages update automatically every few seconds.';
+    } catch {
+      status.textContent = 'Could not check for new messages. Reconnecting…';
+    } finally {
+      polling = false;
+    }
+  };
+
+  conversationForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!input.value.trim()) return;
+    sendButton.disabled = true;
+    status.textContent = 'Sending…';
+    try {
+      const response = await fetch(conversationForm.action, {method: 'POST', body: new FormData(conversationForm), headers: {'Accept': 'application/json'}});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not send your message.');
+      appendMessage(data.message);
+      input.value = '';
+      status.textContent = 'Message sent.';
+    } catch (error) {
+      status.textContent = error.message || 'Could not send your message. Please try again.';
+    } finally {
+      sendButton.disabled = false;
+      input.focus();
+    }
+  });
+
+  window.setInterval(pollMessages, 3000);
+}

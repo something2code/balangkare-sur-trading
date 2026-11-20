@@ -1,5 +1,9 @@
 /config/config.php
 /uploads/*
 !/uploads/.gitkeep
+!/uploads/profile/
+/uploads/profile/*
+!/uploads/profile/.htaccess
+!/uploads/profile/.gitkeep
 .env
 *.log

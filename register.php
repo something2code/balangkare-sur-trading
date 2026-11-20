@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $q = $pdo->prepare('INSERT INTO users(full_name,email,phone,password_hash,role) VALUES(?,?,?,?,?)');
             $q->execute([$name,$email,$phone,password_hash($password,PASSWORD_DEFAULT),$role]);
             session_regenerate_id(true);
-            $_SESSION['user'] = ['id'=>(int)$pdo->lastInsertId(),'full_name'=>$name,'email'=>$email,'phone'=>$phone,'role'=>$role];
+            $_SESSION['user'] = ['id'=>(int)$pdo->lastInsertId(),'full_name'=>$name,'email'=>$email,'phone'=>$phone,'address'=>null,'profile_image_path'=>null,'role'=>$role];
             flash('Welcome! Your account is ready.');
             header('Location: ' . ($role === 'farmer' ? '/farmer/dashboard.php' : '/market.php'));
             exit;

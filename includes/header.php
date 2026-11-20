@@ -14,7 +14,7 @@ $user = current_user();
 <header class="site-header"><a class="brand" href="/index.php"><img class="brand-logo" src="/assets/images/balangkare-icon.png" alt="Balangkare Sur Rice Trading logo"><span><strong>BALANGKARE SUR TRADING</strong><small>Nueva Ecija</small></span></a>
   <button class="menu-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
   <nav class="main-nav"><a href="/market.php">Market</a><a href="/how-it-works.php">How it works</a><a href="/assistant.php">Ask the Farm Guide</a>
-  <?php if ($user): ?><a href="<?= $user['role'] === 'farmer' ? '/farmer/dashboard.php' : '/orders.php' ?>"><?= $user['role'] === 'farmer' ? 'My farm' : 'My orders' ?></a><span class="nav-user">Hi, <?= e(explode(' ', $user['full_name'])[0]) ?></span><a class="button button-small button-quiet" href="/logout.php">Log out</a>
+  <?php if ($user): ?><a href="<?= $user['role'] === 'farmer' ? '/farmer/dashboard.php' : '/orders.php' ?>"><?= $user['role'] === 'farmer' ? 'My farm' : 'My orders' ?></a><a class="profile-link" href="/profile.php" aria-label="My profile"><?php if (!empty($user['profile_image_path'])): ?><img class="nav-avatar" src="<?= e($user['profile_image_path']) ?>" alt=""><?php else: ?><span class="nav-avatar nav-avatar-fallback" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($user['full_name'], 0, 1))) ?></span><?php endif; ?><span class="nav-user">Hi, <?= e(explode(' ', $user['full_name'])[0]) ?></span></a><a class="button button-small button-quiet" href="/logout.php">Log out</a>
   <?php else: ?><a href="/login.php">Log in</a><a class="button button-small" href="/register.php">Join the market</a><?php endif; ?></nav>
 </header>
 <main class="page-shell">

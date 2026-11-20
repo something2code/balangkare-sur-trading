@@ -5,7 +5,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $email = strtolower(trim($_POST['email'] ?? ''));
-    $q = $pdo->prepare('SELECT id,full_name,email,phone,password_hash,role FROM users WHERE email=?');
+    $q = $pdo->prepare('SELECT id,full_name,email,phone,address,profile_image_path,password_hash,role FROM users WHERE email=?');
     $q->execute([$email]);
     $u = $q->fetch();
     if ($u && password_verify($_POST['password'] ?? '', $u['password_hash'])) {
