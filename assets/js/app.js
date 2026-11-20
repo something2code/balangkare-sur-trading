@@ -5,9 +5,61 @@ document.querySelector('.menu-toggle')?.addEventListener('click', (event) => {
   button.setAttribute('aria-expanded', String(open));
 });
 
-document.querySelectorAll('[data-confirm]').forEach((form) => {
+document.querySelectorAll('[data-confirm]').forEach((form, index) => {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'confirm-dialog';
+  dialog.setAttribute('aria-labelledby', `confirm-dialog-title-${index}`);
+  dialog.setAttribute('aria-describedby', `confirm-dialog-message-${index}`);
+
+  const dialogForm = document.createElement('form');
+  dialogForm.method = 'dialog';
+  dialogForm.className = 'confirm-dialog__content';
+
+  const title = document.createElement('h2');
+  title.id = `confirm-dialog-title-${index}`;
+  title.className = 'confirm-dialog__title';
+  title.textContent = 'Please confirm';
+
+  const message = document.createElement('p');
+  message.id = `confirm-dialog-message-${index}`;
+  message.className = 'confirm-dialog__message';
+  message.textContent = form.dataset.confirm;
+
+  const actions = document.createElement('div');
+  actions.className = 'confirm-dialog__actions';
+
+  const keepButton = document.createElement('button');
+  keepButton.type = 'submit';
+  keepButton.value = 'keep';
+  keepButton.className = 'confirm-dialog__keep';
+  keepButton.textContent = 'Keep order';
+
+  const confirmButton = document.createElement('button');
+  confirmButton.type = 'submit';
+  confirmButton.value = 'confirm';
+  confirmButton.className = 'confirm-dialog__confirm';
+  confirmButton.textContent = 'Yes, cancel';
+
+  actions.append(keepButton, confirmButton);
+  dialogForm.append(title, message, actions);
+  dialog.append(dialogForm);
+  document.body.append(dialog);
+
+  let confirmed = false;
   form.addEventListener('submit', (event) => {
-    if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+    if (confirmed) {
+      confirmed = false;
+      return;
+    }
+    event.preventDefault();
+    dialog.showModal();
+  });
+
+  dialog.addEventListener('close', () => {
+    if (dialog.returnValue === 'confirm') {
+      confirmed = true;
+      form.requestSubmit();
+    }
   });
 });
 
