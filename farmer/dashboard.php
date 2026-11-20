@@ -13,14 +13,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $q->execute([$status, $id, $farmer['id']]);
             flash('Listing updated.');
         }
-    } elseif ($action === 'product_stock') {
-        $quantity = filter_var($_POST['quantity'] ?? null, FILTER_VALIDATE_FLOAT);
-        if ($id && $quantity !== false && $quantity >= 0 && $quantity <= 99999999) {
-            $q = $pdo->prepare("UPDATE products SET quantity=?,status=CASE WHEN ?<=0 THEN 'sold_out' WHEN status='sold_out' THEN 'active' ELSE status END WHERE id=? AND farmer_id=?");
-            $q->execute([$quantity, $quantity, $id, $farmer['id']]);
-            flash('Available quantity updated.');
+    } elseif ($action === 'product_stock_adjust') {
+        $amount = filter_var($_POST['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        $direction = $_POST['direction'] ?? '';
+        if (!$id || $amount === false || $amount <= 0 || $amount > 99999999 || !in_array($direction, ['add', 'subtract'], true)) {
+            flash('Enter a valid stock adjustment.', 'error');
         } else {
-            flash('Enter a valid stock amount.', 'error');
+            try {
+                $pdo->beginTransaction();
+                $q = $pdo->prepare('SELECT quantity,status FROM products WHERE id=? AND farmer_id=? FOR UPDATE');
+                $q->execute([$id, $farmer['id']]);
+                $product = $q->fetch();
+                if (!$product) throw new RuntimeException('That listing could not be found.');
+                $newQuantity = round((float)$product['quantity'] + ($direction === 'add' ? $amount : -$amount), 2);
+                if ($newQuantity < 0) throw new RuntimeException('You cannot remove more stock than is available.');
+                if ($newQuantity > 99999999) throw new RuntimeException('Available stock cannot exceed 99,999,999 units.');
+                $q = $pdo->prepare("UPDATE products SET quantity=?,status=CASE WHEN ?<=0 THEN 'sold_out' WHEN status='sold_out' THEN 'active' ELSE status END WHERE id=? AND farmer_id=?");
+                $q->execute([$newQuantity, $newQuantity, $id, $farmer['id']]);
+                $pdo->commit();
+                flash('Available stock adjusted.');
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                flash($e instanceof RuntimeException && !($e instanceof PDOException) ? $e->getMessage() : 'Could not adjust stock. Please try again.', 'error');
+            }
         }
     }
     header('Location: /farmer/dashboard.php');
@@ -51,9 +66,9 @@ require __DIR__ . '/../includes/header.php';
   <section class="panel">
     <div class="section-heading"><div><h2 style="font-size:1.6rem">Product management</h2><p>Keep stock and availability up to date.</p></div><a class="button" href="/farmer/product-new.php">＋ Add product</a></div>
     <?php if ($products): ?>
-      <div class="table-wrap"><table class="data-table"><thead><tr><th>Product</th><th>Category</th><th>Price / unit</th><th>Available</th><th>Status</th><th>Action</th></tr></thead><tbody>
+      <div class="table-wrap"><table class="data-table product-management-table"><thead><tr><th>Product</th><th>Category</th><th>Price / unit</th><th>Available / adjust</th><th>Status</th><th>Action</th></tr></thead><tbody>
         <?php foreach ($products as $p): ?>
-          <tr><td><strong><?= e($p['name']) ?></strong></td><td><?= e($p['category']) ?></td><td><?= money($p['price']) ?> / <?= e($p['unit']) ?></td><td><?= e(rtrim(rtrim((string)$p['quantity'], '0'), '.')) ?> <?= e($p['unit']) ?></td><td><span class="status"><?= e(str_replace('_', ' ', $p['status'])) ?></span></td><td><?php if ($p['status'] !== 'sold_out'): ?><form class="inline-form" method="post"><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="product_status"><input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>"><select aria-label="Listing status" name="status"><option value="active" <?= $p['status'] === 'active' ? 'selected' : '' ?>>Active</option><option value="paused" <?= $p['status'] === 'paused' ? 'selected' : '' ?>>Paused</option></select><button class="button button-small">Save</button></form><?php else: ?>—<?php endif; ?></td></tr>
+          <tr><td><strong><?= e($p['name']) ?></strong></td><td><?= e($p['category']) ?></td><td><?= money($p['price']) ?> / <?= e($p['unit']) ?></td><td><strong><?= e(rtrim(rtrim((string)$p['quantity'], '0'), '.')) ?> <?= e($p['unit']) ?></strong><form class="stock-adjust-form" method="post"><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="product_stock_adjust"><input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>"><label class="visually-hidden" for="stock-amount-<?= (int)$p['id'] ?>">Amount to add or remove (<?= e($p['unit']) ?>)</label><input id="stock-amount-<?= (int)$p['id'] ?>" name="amount" type="number" min="0.01" max="99999999" step="0.01" placeholder="Amount" required><button class="button button-small button-quiet" name="direction" value="add">Add</button><button class="button button-small button-quiet" name="direction" value="subtract">Remove</button></form></td><td><span class="status"><?= e(str_replace('_', ' ', $p['status'])) ?></span></td><td class="product-row-actions"><a class="button button-small button-quiet" href="/farmer/product-edit.php?id=<?= (int)$p['id'] ?>">Edit</a><?php if ($p['status'] !== 'sold_out'): ?><form class="inline-form" method="post"><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="product_status"><input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>"><select aria-label="Listing status" name="status"><option value="active" <?= $p['status'] === 'active' ? 'selected' : '' ?>>Active</option><option value="paused" <?= $p['status'] === 'paused' ? 'selected' : '' ?>>Paused</option></select><button class="button button-small">Save</button></form><?php endif; ?></td></tr>
         <?php endforeach; ?>
       </tbody></table></div>
     <?php else: ?>

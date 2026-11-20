@@ -6,4 +6,7 @@ return [
     'db_user' => 'root',
     'db_pass' => '',
     'app_name' => 'Balangkare Sur Trading',
+    // Add your OpenRouter API key privately in config/config.php; never commit it.
+    'openrouter_api_key' => '',
+    'openrouter_model' => 'openrouter/free',
 ];

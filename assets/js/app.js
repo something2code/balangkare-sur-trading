@@ -89,24 +89,135 @@ if (registrationForm) {
   registrationForm.addEventListener('submit', checkPasswordMatch);
 }
 
-const assistantForm = document.querySelector('#assistant-form');
-assistantForm?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const input = assistantForm.querySelector('input[name="question"]');
-  const feed = document.querySelector('#assistant-feed');
-  const question = input.value.trim();
-  if (!question) return;
-  feed.insertAdjacentHTML('beforeend', `<div class="chat-bubble user-bubble">${escapeHtml(question)}</div>`);
-  input.value = '';
-  const pending = document.createElement('div'); pending.className = 'chat-bubble'; pending.textContent = 'Let me think…'; feed.append(pending);
-  try {
-    const response = await fetch('/assistant.php', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({question}) });
-    const data = await response.json(); pending.textContent = data.answer || 'I could not prepare an answer. Please try again.';
-  } catch { pending.textContent = 'I could not connect. Please try again when the app is running.'; }
-  feed.scrollTop = feed.scrollHeight;
+const appendFarmbotInline = (element, text) => {
+  text.split(/(\*\*[^*]+\*\*)/g).forEach((part) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      const strong = document.createElement('strong');
+      strong.textContent = part.slice(2, -2);
+      element.append(strong);
+    } else {
+      element.append(document.createTextNode(part));
+    }
+  });
+};
+
+const renderFarmbotAnswer = (bubble, answer) => {
+  bubble.replaceChildren();
+  let paragraph = null;
+  let list = null;
+  const lines = answer.replace(/\r\n?/g, '\n').split('\n');
+  const splitTableRow = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const headerCells = line.includes('|') ? splitTableRow(line) : [];
+    const separatorCells = lines[index + 1]?.includes('|') ? splitTableRow(lines[index + 1]) : [];
+    const isTableSeparator = separatorCells.length > 1 && separatorCells.every((cell) => /^:?-{3,}:?$/.test(cell));
+    if (headerCells.length > 1 && isTableSeparator) {
+      paragraph = null;
+      list = null;
+      const cards = document.createElement('div');
+      cards.className = 'farmbot-table-list';
+      index += 2;
+
+      while (index < lines.length && lines[index].includes('|') && lines[index].trim()) {
+        const values = splitTableRow(lines[index]);
+        const card = document.createElement('div');
+        card.className = 'farmbot-table-card';
+        headerCells.forEach((header, column) => {
+          const field = document.createElement('div');
+          field.className = 'farmbot-table-field';
+          const label = document.createElement('strong');
+          label.textContent = header;
+          const value = document.createElement('span');
+          appendFarmbotInline(value, values[column] || '—');
+          field.append(label, value);
+          card.append(field);
+        });
+        cards.append(card);
+        index += 1;
+      }
+      bubble.append(cards);
+      index -= 1;
+      continue;
+    }
+
+    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
+    if (bullet) {
+      paragraph = null;
+      if (!list) {
+        list = document.createElement('ul');
+        bubble.append(list);
+      }
+      const item = document.createElement('li');
+      appendFarmbotInline(item, bullet[1]);
+      list.append(item);
+      continue;
+    }
+
+    if (!line.trim()) {
+      paragraph = null;
+      list = null;
+      continue;
+    }
+
+    list = null;
+    if (!paragraph) {
+      paragraph = document.createElement('p');
+      bubble.append(paragraph);
+    } else {
+      paragraph.append(document.createElement('br'));
+    }
+    appendFarmbotInline(paragraph, line);
+  }
+};
+
+document.querySelectorAll('[data-farmbot-form]').forEach((farmbotForm) => {
+  farmbotForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const input = farmbotForm.querySelector('input[name="question"]');
+    const askButton = farmbotForm.querySelector('button[type="submit"]');
+    const feed = document.getElementById(farmbotForm.dataset.feed);
+    const question = input.value.trim();
+    if (!question || !feed) return;
+    const history = [...feed.querySelectorAll('.chat-bubble:not(.pending)')].slice(-8).map((bubble) => ({
+      role: bubble.classList.contains('user-bubble') ? 'user' : 'assistant',
+      content: bubble.textContent.trim(),
+    }));
+    const userBubble = document.createElement('div');
+    userBubble.className = 'chat-bubble user-bubble';
+    userBubble.textContent = question;
+    feed.append(userBubble);
+    input.value = '';
+    const pending = document.createElement('div'); pending.className = 'chat-bubble pending'; pending.textContent = 'FarmBot is thinking…'; feed.append(pending);
+    if (askButton) askButton.disabled = true;
+    try {
+      const response = await fetch('/assistant.php', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({question, history}) });
+      const data = await response.json();
+      renderFarmbotAnswer(pending, data.answer || 'I could not prepare an answer. Please try again.');
+    } catch { pending.textContent = 'I could not connect. Please try again when the app is running.'; }
+    pending.classList.remove('pending');
+    if (askButton) askButton.disabled = false;
+    input.focus();
+    feed.scrollTop = feed.scrollHeight;
+  });
 });
 
-function escapeHtml(value) { const node = document.createElement('span'); node.textContent = value; return node.innerHTML; }
+const farmbotLauncher = document.querySelector('#farmbot-launcher');
+const farmbotPanel = document.querySelector('#farmbot-panel');
+const farmbotClose = document.querySelector('#farmbot-close');
+const setFarmbotOpen = (open) => {
+  if (!farmbotLauncher || !farmbotPanel) return;
+  farmbotPanel.hidden = !open;
+  farmbotLauncher.setAttribute('aria-expanded', String(open));
+  if (open) farmbotPanel.querySelector('input[name="question"]')?.focus();
+  else farmbotLauncher.focus();
+};
+farmbotLauncher?.addEventListener('click', () => setFarmbotOpen(farmbotPanel.hidden));
+farmbotClose?.addEventListener('click', () => setFarmbotOpen(false));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && farmbotPanel && !farmbotPanel.hidden) setFarmbotOpen(false);
+});
 
 const conversation = document.querySelector('#conversation-messages');
 const conversationForm = document.querySelector('#conversation-form');

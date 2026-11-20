@@ -5,9 +5,10 @@ A starter PHP/MySQL marketplace for the capstone proposal: local farmers can lis
 ## Stack
 
 - HTML and CSS for accessible, responsive pages
-- JavaScript for the mobile menu, Farm Guide, and live product conversations
+- JavaScript for the mobile menu, FarmBot chat, and live product conversations
 - PHP 8+ for sessions, validation, marketplace, and order handling
 - MySQL/MariaDB for accounts, products, orders, and conversations
+- OpenRouter API for FarmBot answers, called from PHP on the server
 
 ## Run locally with XAMPP
 
@@ -21,6 +22,8 @@ A starter PHP/MySQL marketplace for the capstone proposal: local farmers can lis
    ```
 
 5. Visit `http://localhost:8000`.
+
+To activate FarmBot, create an API key in [OpenRouter](https://openrouter.ai/settings/keys), then add `openrouter_api_key` and `openrouter_model` to your private `config/config.php` using the names in `config/config.example.php`. The default `openrouter/free` model router selects an available free model; free models have usage limits and availability can change. Keep the key out of browser JavaScript, screenshots, and Git. PHP cURL must be enabled. Monitor usage and any credits in OpenRouter.
 
 For an existing database from before messaging was added, import `database/add-messages-table.sql` first if it has no `messages` table, then import `database/migrate-product-conversations.sql` once. If the database already has the earlier order-linked `messages` table, import only `database/migrate-product-conversations.sql`. This moves existing messages into product conversations. Back up the database before running the migration.
 
@@ -38,9 +41,9 @@ This starts PHP from the project folder while XAMPP supplies MySQL. The app uses
 
 Use made-up data for demos. Order requests do not take payment. The buyer and farmer agree on payment and pickup/delivery outside the app.
 
-## Farm Guide status
+## FarmBot status
 
-The chat page currently uses simple local PHP rules. It is a **demo guide, not an AI integration** and does not have live local weather, crop prices, soil data, or current planting advisories. A real AI provider can be connected later through a server-side API key stored privately; never put an API key in browser JavaScript or commit it to GitHub. Confirm agronomy guidance with local agricultural experts.
+FarmBot calls OpenRouter through the server-side PHP handler. Product questions can include a limited set of current public listings from the marketplace; private profile details and messages are not included. The OpenRouter key must be configured before AI answers are available. The default `openrouter/free` router chooses an available free model, whose availability and usage limits can change. FarmBot has no live weather, soil data, disease diagnosis, or guaranteed local planting advisories. Its replies can be wrong; confirm agronomy guidance with local agricultural experts. Do not enter passwords, payment details, or private personal information into the chat.
 
 ## Data and security notes
 
@@ -54,9 +57,10 @@ The chat page currently uses simple local PHP rules. It is a **demo guide, not a
 - Farmer and buyer registration/login
 - Profile updates for name, email, phone, private address, and profile picture
 - Searchable product marketplace with category and maximum-price filters
-- Farmer product creation, optional product photos, and pause/activate controls
+- Farmer product creation and editing, optional product photos, stock add/remove controls, and pause/activate controls
+- Buyer session cart with a navigation count, quantity updates, and multi-product order-request checkout; cart contents stay in the current browser session
 - Buyer order requests with quantity checks and stock reservation
 - Farmer order acceptance/rejection/ready/completed statuses
 - Buyer order history and cancellation of new requests
 - Product conversations started by buyers from marketplace cards and answered from the farmer inbox, with automatic updates every three seconds
-- Responsive Farm Guide demo
+- FarmBot AI chat using OpenRouter and current public listing context for product questions

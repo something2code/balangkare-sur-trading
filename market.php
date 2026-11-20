@@ -40,6 +40,7 @@ require __DIR__ . '/includes/header.php';
     <?php if ($products): ?>
       <div class="product-grid">
         <?php foreach ($products as $p): ?>
+          <?php $canBuyerAct = ($currentUser['role'] ?? '') === 'buyer' && (int)$currentUser['id'] !== (int)$p['farmer_id']; ?>
           <article class="product-card">
             <?php require __DIR__ . '/includes/product-art.php'; ?>
             <div class="product-content">
@@ -49,7 +50,8 @@ require __DIR__ . '/includes/header.php';
               <div class="product-meta">Available: <?= e(rtrim(rtrim((string)$p['quantity'], '0'), '.')) ?> <?= e($p['unit']) ?></div>
               <div class="product-bottom">
                 <span class="price"><?= money($p['price']) ?><small class="product-meta"> / <?= e($p['unit']) ?></small></span>
-                <div class="product-actions">
+                <div class="product-actions <?= $canBuyerAct ? 'product-actions-buyer' : 'product-actions-single' ?>">
+                  <?php if (($currentUser['role'] ?? '') === 'buyer' && (int)$currentUser['id'] !== (int)$p['farmer_id']): ?><form method="post" action="/cart-action.php" class="market-cart-form"><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="add"><input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>"><input type="hidden" name="quantity" value="<?= e(number_format(min(1.0, (float)$p['quantity']), 2, '.', '')) ?>"><button class="button button-small button-quiet" type="submit">Add to cart</button></form><?php endif; ?>
                   <?php if (($currentUser['role'] ?? '') === 'buyer' && (int)$currentUser['id'] !== (int)$p['farmer_id']): ?><form method="post" action="/messages.php"><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>"><button class="button button-small button-quiet" type="submit">Message</button></form><?php endif; ?>
                   <a class="button button-small" href="/product.php?id=<?= (int)$p['id'] ?>">Details</a>
                 </div>
