@@ -5,6 +5,26 @@ document.querySelector('.menu-toggle')?.addEventListener('click', (event) => {
   button.setAttribute('aria-expanded', String(open));
 });
 
+const privacyAnnouncement = document.getElementById('privacy-announcement');
+if (privacyAnnouncement) {
+  const consentCheckbox = document.getElementById('privacy_consent');
+  const continueButton = privacyAnnouncement.querySelector('[data-close-privacy]');
+  const updateContinueButton = () => {
+    if (continueButton && consentCheckbox) continueButton.disabled = !consentCheckbox.checked;
+  };
+  consentCheckbox?.addEventListener('change', updateContinueButton);
+  consentCheckbox?.addEventListener('invalid', () => {
+    if (typeof privacyAnnouncement.showModal === 'function' && !privacyAnnouncement.open) privacyAnnouncement.showModal();
+  });
+  updateContinueButton();
+  document.querySelector('[data-close-privacy]')?.addEventListener('click', () => {
+    if (typeof privacyAnnouncement.close === 'function') privacyAnnouncement.close();
+    else privacyAnnouncement.removeAttribute('open');
+  });
+  if (typeof privacyAnnouncement.showModal === 'function') privacyAnnouncement.showModal();
+  else privacyAnnouncement.setAttribute('open', '');
+}
+
 document.querySelectorAll('[data-confirm]').forEach((form, index) => {
   const dialog = document.createElement('dialog');
   dialog.className = 'confirm-dialog';

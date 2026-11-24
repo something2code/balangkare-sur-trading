@@ -11,12 +11,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $role = $postedString('role');
     $password = $postedString('password');
     $passwordConfirm = $postedString('password_confirm');
+    $privacyConsent = $postedString('privacy_consent');
     if (mb_strlen($name) < 2 || mb_strlen($name) > 120) $errors[] = 'Enter your name (2 to 120 characters).';
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Enter a valid email address.';
     if (mb_strlen($phone) < 7 || mb_strlen($phone) > 30) $errors[] = 'Enter a phone number we can use for order coordination.';
     if (!in_array($role, ['farmer','buyer'], true)) $errors[] = 'Choose Farmer or Buyer.';
     if (strlen($password) < 8) $errors[] = 'Use a password with at least 8 characters.';
     if ($password !== $passwordConfirm) $errors[] = 'The passwords do not match. Please check both password fields.';
+    if ($privacyConsent !== '1') $errors[] = 'Please read and agree to the Privacy Notice before creating your account.';
     if (!$errors) {
         try {
             if (!request_rate_limit('registration-ip', 10, 3600)) {
@@ -48,7 +50,17 @@ require __DIR__ . '/includes/header.php';
 ?>
 <div class="auth-layout"><section class="auth-card"><span class="eyebrow" style="color:var(--green)">Join the community</span><h1>Create your account</h1><p>Choose whether you are here to sell a harvest or find one.</p>
 <?php foreach ($errors as $error): ?><div class="notice error"><?= e($error) ?></div><?php endforeach; ?>
-<form method="post" data-password-match-form><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+<dialog class="privacy-announcement" id="privacy-announcement" aria-labelledby="privacy-announcement-title" aria-describedby="privacy-announcement-intro">
+  <div class="privacy-announcement__content">
+    <span class="eyebrow" style="color:var(--green)">Before you join</span>
+    <h2 id="privacy-announcement-title">Privacy Notice</h2>
+    <p id="privacy-announcement-intro" class="privacy-announcement__intro">Here’s what this capstone prototype stores and shares when you use it.</p>
+    <div class="privacy-announcement__body privacy-content"><?php require __DIR__ . '/includes/privacy-notice-content.php'; ?></div>
+    <div class="privacy-consent"><label class="check-option" for="privacy_consent"><input id="privacy_consent" type="checkbox" name="privacy_consent" value="1" form="registration-form" required <?= $postedString('privacy_consent') === '1' ? 'checked' : '' ?>><span>I have read and agree to the Privacy Notice.</span></label><a href="/privacy.php">Read the full Privacy Notice</a></div>
+    <button class="button privacy-announcement__continue" type="button" data-close-privacy>Continue to account creation</button>
+  </div>
+</dialog>
+<form id="registration-form" method="post" data-password-match-form><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
   <div class="field"><label for="full_name">Full name</label><input id="full_name" name="full_name" required maxlength="120" value="<?= e($postedString('full_name')) ?>" autocomplete="name"></div>
   <div class="field"><label for="role">I am a</label><select id="role" name="role" required><option value="">Choose one</option><option value="farmer" <?= ($_POST['role'] ?? $_GET['role'] ?? '') === 'farmer' ? 'selected' : '' ?>>Farmer — I want to list products</option><option value="buyer" <?= ($_POST['role'] ?? $_GET['role'] ?? '') === 'buyer' ? 'selected' : '' ?>>Buyer — I want to find products</option></select></div>
   <div class="field"><label for="email">Email address</label><input id="email" type="email" name="email" required maxlength="190" value="<?= e($postedString('email')) ?>" autocomplete="email"></div>
