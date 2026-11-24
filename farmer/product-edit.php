@@ -38,21 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $upload = $_FILES['image'] ?? null;
     if ($upload && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
-        if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            $errors[] = 'The product photo could not be uploaded.';
-        } elseif (($upload['size'] ?? 0) > 3 * 1024 * 1024) {
-            $errors[] = 'Product photos must be 3 MB or smaller.';
-        } else {
-            $mime = (new finfo(FILEINFO_MIME_TYPE))->file($upload['tmp_name']);
-            $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-            if (!isset($extensions[$mime])) {
-                $errors[] = 'Use a JPG, PNG, or WebP photo.';
-            } elseif (!$errors) {
+        try {
+            $extension = image_upload_extension($upload, 3 * 1024 * 1024);
+            if (!$errors) {
                 $dir = __DIR__ . '/../uploads';
                 if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
                     $errors[] = 'Could not create the uploads folder.';
                 } else {
-                    $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+                    $filename = bin2hex(random_bytes(16)) . '.' . $extension;
                     if (move_uploaded_file($upload['tmp_name'], $dir . '/' . $filename)) {
                         $newImagePath = '/uploads/' . $filename;
                     } else {
@@ -60,6 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
         }
     }
 

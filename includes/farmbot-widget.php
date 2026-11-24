@@ -11,6 +11,7 @@
       <input name="question" maxlength="1000" placeholder="Ask FarmBot…" aria-label="Ask FarmBot a question" required>
       <button class="button" type="submit">Ask</button>
     </form>
+    <p class="farmbot-disclosure">Questions and recent chat context go to OpenRouter; product questions may include public listings. Don’t share private information. <a href="/privacy.php">Privacy notice</a>.</p>
   </section>
   <button class="farmbot-launcher" id="farmbot-launcher" type="button" aria-label="Open FarmBot chat" aria-expanded="false" aria-controls="farmbot-panel">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6a7.5 7.5 0 1 1 17-3.5Z"/><path d="M8 11h8M8 14h5"/></svg>

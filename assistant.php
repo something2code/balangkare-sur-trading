@@ -69,11 +69,24 @@ function farmbot_provider_error_details(string $response): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $body = json_decode(file_get_contents('php://input'), true);
+    $rawBody = file_get_contents('php://input', false, null, 0, 49153);
+    if (!is_string($rawBody) || strlen($rawBody) > 49152) {
+        farmbot_json_response(['answer' => 'That request is too large. Please shorten the conversation and try again.'], 413);
+    }
+    $body = json_decode($rawBody, true);
     if (!is_array($body)) farmbot_json_response(['answer' => 'I could not read that question. Please try again.'], 400);
     $question = is_string($body['question'] ?? null) ? trim($body['question']) : '';
     if ($question === '' || mb_strlen($question) > 1000) {
         farmbot_json_response(['answer' => 'Please enter a question between 1 and 1,000 characters.'], 422);
+    }
+
+    try {
+        if (!request_rate_limit('farmbot', 20, 60)) {
+            farmbot_json_response(['answer' => 'FarmBot is receiving too many questions. Please wait a minute and try again.'], 429);
+        }
+    } catch (Throwable $e) {
+        error_log('FarmBot request throttling is unavailable.');
+        farmbot_json_response(['answer' => 'FarmBot is temporarily unavailable. Please try again later.'], 503);
     }
 
     $apiKey = farmbot_api_key($config);
@@ -109,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     );
     $requestBody = json_encode([
         'model' => $config['openrouter_model'] ?? 'openrouter/free',
+        'max_tokens' => 600,
         'messages' => $messages,
     ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     if (!is_string($requestBody)) {
@@ -161,5 +175,5 @@ $pageTitle = 'FarmBot';
 require __DIR__ . '/includes/header.php';
 ?>
 <section class="page-intro"><span class="eyebrow" style="color:var(--green)">FarmBot</span><h1 style="font-size:clamp(2.1rem,4vw,3.4rem)">A helpful place to start.</h1><p>Ask about using the market, current listings, or general crop-planning questions.</p></section>
-<section class="panel chat-panel"><div class="chat-feed" id="assistant-feed"><div class="chat-bubble">Hello! I’m FarmBot. I can help you use the marketplace, explore current listings, and discuss general farming questions. What would you like to know?</div></div><form class="chat-form" id="assistant-form" data-farmbot-form data-feed="assistant-feed"><input name="question" maxlength="1000" placeholder="Example: What rice is available?" aria-label="Your question" required><button class="button" type="submit">Ask</button></form></section>
+<section class="panel chat-panel"><div class="chat-feed" id="assistant-feed"><div class="chat-bubble">Hello! I’m FarmBot. I can help you use the marketplace, explore current listings, and discuss general farming questions. What would you like to know?</div></div><form class="chat-form" id="assistant-form" data-farmbot-form data-feed="assistant-feed"><input name="question" maxlength="1000" placeholder="Example: What rice is available?" aria-label="Your question" required><button class="button" type="submit">Ask</button></form><p class="farmbot-disclosure">When you ask, your question and recent chat context are sent to OpenRouter. Product questions may also include current public listings. Don’t enter private information. <a href="/privacy.php">Read the privacy notice</a>.</p></section>
 <?php require __DIR__ . '/includes/footer.php'; ?>

@@ -18,6 +18,12 @@ if (!$conversationId || $conversationId < 1) {
 }
 
 try {
+    $messageScope = $_SERVER['REQUEST_METHOD'] === 'POST' ? 'message-send' : 'message-poll';
+    $messageLimit = $_SERVER['REQUEST_METHOD'] === 'POST' ? 30 : 80;
+    if (!request_rate_limit($messageScope, $messageLimit, 60, (string)$user['id'])) {
+        message_api_error('Too many message requests. Please wait a minute and try again.', 429);
+    }
+
     $q = $pdo->prepare('SELECT id,buyer_id,farmer_id FROM conversations WHERE id=?');
     $q->execute([$conversationId]);
     $conversationRow = $q->fetch();
@@ -58,7 +64,8 @@ try {
         WHERE m.conversation_id=? AND m.id>? ORDER BY m.id ASC LIMIT 100');
     $q->execute([$conversationId, $afterId]);
     echo json_encode(['messages' => $q->fetchAll()], JSON_UNESCAPED_UNICODE);
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Could not load or send the message. Please try again.']);
+} catch (Throwable $e) {
+    error_log('Messages API request failed.');
+    http_response_code(503);
+    echo json_encode(['error' => 'Messaging is temporarily unavailable. Please try again later.']);
 }

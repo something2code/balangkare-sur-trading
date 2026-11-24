@@ -9,4 +9,6 @@ return [
     // Add your OpenRouter API key privately in config/config.php; never commit it.
     'openrouter_api_key' => '',
     'openrouter_model' => 'openrouter/free',
+    // Generate a unique private value for this installation before enabling rate-limited actions.
+    'rate_limit_secret' => 'replace-with-a-long-random-private-value',
 ];

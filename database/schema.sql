@@ -79,4 +79,11 @@ CREATE TABLE IF NOT EXISTS messages (
   INDEX idx_messages_recipient (recipient_id, created_at)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS request_rate_limits (
+  bucket_hash CHAR(64) NOT NULL PRIMARY KEY,
+  window_started_at DATETIME NOT NULL,
+  request_count INT UNSIGNED NOT NULL DEFAULT 0,
+  INDEX idx_request_rate_limits_window (window_started_at)
+) ENGINE=InnoDB;
+
 -- Optional starter products are added after creating a farmer account, from the Farmer Dashboard.

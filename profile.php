@@ -44,19 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $upload = $_FILES['profile_photo'] ?? null;
     $extension = null;
     if ($upload && $upload['error'] !== UPLOAD_ERR_NO_FILE) {
-        if ($upload['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = 'The profile photo could not be uploaded.';
-        } elseif ($upload['size'] > 2 * 1024 * 1024) {
-            $errors[] = 'Profile photos must be 2 MB or smaller.';
-        } else {
-            $mimeTypes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-            $detectedMime = (new finfo(FILEINFO_MIME_TYPE))->file($upload['tmp_name']);
-            $imageInfo = @getimagesize($upload['tmp_name']);
-            if (!isset($mimeTypes[$detectedMime]) || !$imageInfo || ($imageInfo['mime'] ?? '') !== $detectedMime) {
-                $errors[] = 'Use a valid JPG, PNG, or WebP image.';
-            } else {
-                $extension = $mimeTypes[$detectedMime];
-            }
+        try {
+            $extension = image_upload_extension($upload, 2 * 1024 * 1024);
+        } catch (InvalidArgumentException $e) {
+            $errors[] = $e->getMessage();
         }
     }
 
